@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tests — DART CROSSWORDS PRO</title>
+  <style>
+    body { font: 15px/1.5 system-ui, sans-serif; background: #0c0d10; color: #ececf1; margin: 0; padding: 20px; }
+    h1 { font-size: 1.3rem; } #summary { font-weight: 700; margin: 12px 0; }
+    li { list-style: none; padding: 4px 8px; border-left: 3px solid #444; margin-bottom: 3px; background: #15171c; }
+    li.pass { border-color: #7cc4a0; } li.fail { border-color: #e08b8b; } li.skip { border-color: #e3b86f; }
+    .note { color: #a2a7b3; display: block; font-size: .85rem; }
+  </style>
+</head>
+<body>
+  <h1>Tests de DART CROSSWORDS PRO</h1>
+  <p id="summary">Exécution…</p>
+  <ul id="list" style="padding:0"></ul>
+  <script src="../js/crossword-data.js"></script>
+  <script src="../js/crossword-engine.js"></script>
+  <script src="../js/timer.js"></script>
+  <script src="../js/hints.js"></script>
+  <script src="../js/storage.js"></script>
+  <script src="../js/results.js"></script>
+  <script src="harness.js"></script>
+  <script src="tests-core.js"></script>
+  <script src="tests-dom.js"></script>
+  <script>
+    DCPTest.run("browser").then(function (out) {
+      var c = { pass: 0, fail: 0, skip: 0 }, ul = document.getElementById("list");
+      out.forEach(function (r) {
+        c[r.status]++;
+        var li = document.createElement("li"); li.className = r.status;
+        li.textContent = (r.status === "pass" ? "OK — " : r.status === "skip" ? "IGNORÉ — " : "ÉCHEC — ") + r.name;
+        if (r.note) { var n = document.createElement("span"); n.className = "note"; n.textContent = r.note; li.appendChild(n); }
+        ul.appendChild(li);
+      });
+      var s = c.pass + " réussis, " + c.fail + " échoués, " + c.skip + " ignorés";
+      document.getElementById("summary").textContent = s;
+      window.__results = { counts: c, results: out, done: true };
+      document.title = (c.fail ? "ÉCHEC" : "OK") + " — " + s;
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0c0d10">
+  <meta name="description" content="DART CROSSWORDS PRO : 25 mots croisés pour apprendre le langage de programmation Dart, en 5 minutes.">
+  <title>DART CROSSWORDS PRO</title>
+  <link rel="icon" type="image/svg+xml" href="assets/icons/favicon.svg">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Aller au contenu</a>
+  <div id="storage-warning" class="banner" role="alert" hidden></div>
+  <noscript><p class="banner">Ce jeu nécessite JavaScript.</p></noscript>
+
+  <main id="main">
+    <!-- ACCUEIL -->
+    <section id="screen-home" class="screen" aria-labelledby="home-title">
+      <div class="home-grid">
+        <div class="hero">
+          <div class="brand-tiles" aria-hidden="true"><span>D</span><span>A</span><span>R</span><span>T</span></div>
+          <h1 id="home-title">DART CROSSWORDS PRO</h1>
+          <p class="subtitle">Le défi de programmation Dart, en mots croisés.</p>
+          <p class="lead">Retrouve 25 notions du langage Dart (fondamentaux et collections) à partir de leur définition. Les indices ne se montrent que tant que tu maintiens le numéro d'une entrée : concentre-toi, le temps est compté.</p>
+          <ul class="facts">
+            <li><strong>25</strong> mots</li>
+            <li><strong>15</strong> faciles · <strong>10</strong> moyens</li>
+            <li><strong>5</strong> minutes</li>
+          </ul>
+
+          <div id="resume-card" class="card resume" hidden>
+            <h2 class="card-title">Une partie est en cours</h2>
+            <p id="resume-text"></p>
+            <div class="row">
+              <button type="button" class="btn primary" id="btn-resume">Reprendre la partie</button>
+              <button type="button" class="btn ghost danger" id="btn-discard">Abandonner</button>
+            </div>
+          </div>
+          <div id="last-result-card" class="card resume" hidden>
+            <h2 class="card-title">Dernière partie terminée</h2>
+            <p id="last-result-text"></p>
+            <div class="row"><button type="button" class="btn" id="btn-last-result">Voir le résultat</button></div>
+          </div>
+
+          <div class="card start-card">
+            <label for="player-name" class="field-label">Nom du joueur <span class="req">(obligatoire)</span></label>
+            <input id="player-name" class="input" type="text" maxlength="40" autocomplete="nickname" autocapitalize="words" spellcheck="false" aria-describedby="name-error" placeholder="Ex. : Jawad ELYAMIQ & Said FETTAH">
+            <p id="name-error" class="field-error" role="alert" hidden>Saisis ton nom pour commencer la partie.</p>
+            <button type="button" class="btn primary big" id="btn-start">Commencer la partie</button>
+            <label class="switch" for="opt-sound-home">
+              <input type="checkbox" id="opt-sound-home" checked>
+              <span class="switch-ui" aria-hidden="true"></span>
+              <span>Sons activés</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="home-side">
+          <section class="card" aria-labelledby="aids-home-title">
+            <h2 class="card-title" id="aids-home-title">Deux aides, avec un coût</h2>
+            <ul class="aid-list">
+              <li><strong>Révéler une lettre</strong><span>5 utilisations : les 4 premières sont gratuites, la 5e coûte 2 points et 3 secondes.</span></li>
+              <li><strong>Révéler la moitié</strong><span>2 utilisations : chacune coûte 3 points et 15 secondes.</span></li>
+            </ul>
+          </section>
+          <section class="card" aria-labelledby="rules-home-title">
+            <h2 class="card-title" id="rules-home-title">Règles du jeu</h2>
+            <div id="rules-content" class="rules"></div>
+          </section>
+        </div>
+      </div>
+    </section>
+
+    <!-- JEU -->
+    <section id="screen-game" class="screen" hidden aria-label="Partie en cours">
+      <header class="game-bar" id="game-bar">
+        <div class="stat"><span class="label">Temps restant</span><span id="timer" class="value timer" role="timer">10:00</span></div>
+        <div class="stat"><span class="label">Mots résolus</span><span id="solved-count" class="value">0 / 25</span></div>
+        <div class="stat"><span class="label">Score</span><span id="score-value" class="value">0</span></div>
+        <div class="stat hide-sm"><span class="label">Erreurs</span><span id="error-count" class="value">0</span></div>
+        <div class="stat progress-stat">
+          <span class="label">Progression <span id="progress-text">0 %</span></span>
+          <div class="progress" id="progress" role="progressbar" aria-label="Progression globale" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="progress-fill"></span></div>
+        </div>
+      </header>
+      <div class="bar-actions" id="bar-actions">
+          <button type="button" class="btn small" id="btn-pause" aria-label="Mettre en pause">Pause</button>
+          <button type="button" class="btn small" id="btn-rules" aria-label="Afficher les règles">Règles</button>
+          <button type="button" class="btn small" id="btn-sound" aria-pressed="true" aria-label="Sons">Sons</button>
+          <button type="button" class="btn small" id="btn-home" aria-label="Retourner à l'accueil (met la partie en pause)">Accueil</button>
+          <button type="button" class="btn small danger" id="btn-abandon">Abandonner et recommencer</button>
+      </div>
+
+      <div class="game-layout" id="game-layout">
+        <div class="grid-col" id="grid-col">
+          <p id="active-info" class="active-info" aria-live="polite">Sélectionne une case pour commencer.</p>
+          <div class="grid-wrap" id="grid-wrap">
+            <div id="grid" class="grid" role="grid" aria-label="Grille de mots croisés Dart"></div>
+            <input id="grid-input" class="grid-input" type="text" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" aria-label="Saisie des lettres dans la grille. Flèches pour naviguer, Entrée pour le mot suivant, Espace pour changer de direction.">
+            <div id="pause-overlay" class="pause-overlay" hidden>
+              <p>Partie en pause</p>
+              <button type="button" class="btn primary" id="btn-resume-game">Reprendre</button>
+            </div>
+          </div>
+          <p class="keys-help">Flèches : naviguer · Espace ou nouveau clic : changer de direction · Entrée : mot suivant · Retour arrière / Suppr : effacer</p>
+        </div>
+
+        <aside class="side" id="side" aria-label="Aides et entrées">
+          <section class="card aids" aria-labelledby="aids-title">
+            <h2 class="card-title" id="aids-title">Aides</h2>
+            <div class="aid-block">
+              <p class="aid-msg" id="aid-msg-letter" role="status" aria-live="polite"></p>
+              <button type="button" class="btn aid" id="aid-letter"><span class="aid-name">Révéler une lettre</span><span class="aid-left" id="aid-letter-left">Lettres révélées : 0/5</span></button>
+            </div>
+            <div class="aid-block">
+              <p class="aid-msg" id="aid-msg-half" role="status" aria-live="polite"></p>
+              <button type="button" class="btn aid" id="aid-half"><span class="aid-name">Révéler la moitié</span><span class="aid-left" id="aid-half-left">Moitiés révélées : 0/2</span></button>
+            </div>
+            <p id="toast" class="toast" role="status" aria-live="polite"></p>
+          </section>
+          <section class="card clues" aria-labelledby="clues-title">
+            <h2 class="card-title" id="clues-title">Entrées</h2>
+            <p class="clues-help">Maintiens le numéro (clic enfoncé, doigt appuyé ou touche Espace) pour lire la définition.</p>
+            <h3 class="clue-heading">Horizontalement</h3>
+            <ul class="clue-list" id="clues-h"></ul>
+            <h3 class="clue-heading">Verticalement</h3>
+            <ul class="clue-list" id="clues-v"></ul>
+          </section>
+        </aside>
+      </div>
+    </section>
+
+    <!-- RÉSULTATS -->
+    <section id="screen-results" class="screen" hidden aria-labelledby="result-title">
+      <div class="results-wrap">
+        <div id="results-content"></div>
+        <div class="row results-actions">
+          <button type="button" class="btn primary" id="btn-replay">Rejouer</button>
+          <button type="button" class="btn" id="btn-results-home">Retour à l'accueil</button>
+          <button type="button" class="btn" id="btn-corrections" aria-expanded="false">Voir les corrections</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer" id="site-footer">
+    <p>Created by : M'bark LAHNOUD</p>
+    <p>Supervised by : Mohammed GOUMIH</p>
+    <p>DEVOAM-26-27</p>
+  </footer>
+
+  <!-- Indice temporaire (visible uniquement pendant le maintien) -->
+  <div id="hint-pop" class="hint-pop" role="status" aria-live="polite" hidden>
+    <p class="hint-pop-title" id="hint-pop-title"></p>
+    <p class="hint-pop-text" id="hint-pop-text"></p>
+  </div>
+  <p id="sr-live" class="sr-only" aria-live="polite"></p>
+  <div id="modal-root"></div>
+
+  <script src="js/crossword-data.js"></script>
+  <script src="js/crossword-engine.js"></script>
+  <script src="js/timer.js"></script>
+  <script src="js/hints.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/sound.js"></script>
+  <script src="js/dom.js"></script>
+  <script src="js/results.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
