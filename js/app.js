@@ -38,12 +38,12 @@
   /* ------------------------------------------------------------------ */
   function rulesNode() {
     var items = [
-      "La grille contient 25 mots sur Dart : 15 faciles et 10 moyens (10 sur les collections, 15 sur les fondamentaux). Tu disposes de 5 minutes.",
+      "La grille contient 25 mots sur Dart : 12 faciles, 10 moyens et 3 difficiles. Tu disposes de 10 minutes.",
       "Clique sur une case puis tape directement les lettres. Flèches : naviguer. Espace ou nouveau clic sur la case : changer de direction. Entrée : mot suivant. Retour arrière ou Suppr : effacer.",
       "Les définitions sont cachées. Maintiens le numéro d'une entrée (clic enfoncé, doigt appuyé, ou touche Espace sur le numéro au clavier) : la définition s'affiche tant que tu maintiens.",
       "Un mot est vérifié dès que toutes ses cases sont remplies. Un mot correct est verrouillé. Une tentative complète incorrecte coûte 3 points, plus 5 points de pénalité de validation. Taper, effacer ou changer de case n'en coûte jamais.",
       "Deux aides : « Révéler une lettre » (5 fois ; les 4 premières gratuites, la 5e coûte 2 points et 3 secondes) et « Révéler la moitié » (2 fois ; chacune coûte 3 points et 15 secondes). Les lettres révélées sont verrouillées et le mot concerné perd son bonus de première tentative.",
-      "Score : 10 points par mot facile, 15 par mot moyen, +10 si le mot est trouvé du premier coup sans aide, et +2 points par tranche de 10 secondes restantes si tu termines les 25 mots. Le score ne descend jamais sous zéro.",
+      "Score : 10 points par mot facile, 15 par mot moyen, 20 par mot difficile, +10 si le mot est trouvé du premier coup sans aide, et +1 point par tranche de 10 secondes restantes si tu termines les 25 mots. Le score ne descend jamais sous zéro.",
       "Pause : le chronomètre s'arrête et la grille est masquée. Ta partie est sauvegardée automatiquement sur cet appareil."
     ];
     return h("ol", { class: "rules-list" }, items.map(function (t) { return h("li", { text: t }); }));
@@ -397,6 +397,8 @@
      sur le numéro). Toute autre interaction ou tout relâchement le masque immédiatement, et seul un
      NOUVEAU maintien (pointerdown ou nouvelle pression non répétée) peut le réafficher. */
   var heldKind = null;            // "pointer" | "key" | null
+  var heldPointerId = null;       // identifiant du doigt / pointeur qui maintient
+  var heldPointerType = null;     // "touch" | "pen" | "mouse"
   function showHint(id, anchor, kind) {
     if (!playing()) return;
     var e = grid.byId[id], pop = $("hint-pop");
@@ -412,58 +414,68 @@
     pop.style.left = left + "px"; pop.style.top = top + "px";
   }
   function hideHint() {
-    heldId = null; heldKind = null;
+    heldId = null; heldKind = null; heldPointerId = null; heldPointerType = null;
     var pop = $("hint-pop");
     if (!pop.hidden) pop.hidden = true;
   }
   function isHoldKey(k) { return k === " " || k === "Enter" || k === "Spacebar"; }
 
   function bindHold(btn, id) {
-    // Début du maintien : souris (bouton principal) ou doigt.
+    // Début du maintien : souris (bouton principal), doigt ou stylet. Un seul déclencheur : pointerdown
+    // (aucun écouteur mouse/touch/click ne peut donc provoquer un double déclenchement).
     btn.addEventListener("pointerdown", function (e) {
       if (e.pointerType === "mouse" && e.button !== 0) return;
       if (!playing()) return;
+      if (heldId === id && heldPointerId === e.pointerId) return;     // doublon de pointerdown
       E.selectEntry(game, grid, id); refresh();
       showHint(id, btn, "pointer");
+      heldPointerId = e.pointerId; heldPointerType = e.pointerType;
+      // Le doigt reste « capturé » par le numéro tant qu'il est posé, même s'il glisse un peu.
+      try { if (e.pointerType !== "mouse" && btn.setPointerCapture) btn.setPointerCapture(e.pointerId); } catch (err) { /* ignoré */ }
     });
-    // Fin du maintien : relâchement, annulation, sortie du pointeur.
-    ["pointerup", "pointercancel", "pointerleave", "lostpointercapture"].forEach(function (ev) { btn.addEventListener(ev, hideHint); });
-    btn.addEventListener("contextmenu", function (e) { e.preventDefault(); });   // menu contextuel du maintien tactile
+    // Fin du maintien : relâchement ou annulation du MÊME pointeur.
+    ["pointerup", "pointercancel"].forEach(function (ev) {
+      btn.addEventListener(ev, function (e) { if (heldPointerId === null || e.pointerId === heldPointerId) hideHint(); });
+    });
+    // Souris uniquement : quitter le numéro bouton enfoncé masque l'indice. Au tactile, pointerleave
+    // et lostpointercapture peuvent survenir pendant que le doigt est encore posé : ils sont ignorés.
+    btn.addEventListener("pointerleave", function (e) { if (e.pointerType === "mouse") hideHint(); });
+    // Appui long tactile : le menu contextuel et la sélection de texte sont bloqués SANS masquer l'indice.
+    btn.addEventListener("contextmenu", function (e) { e.preventDefault(); });
+    btn.addEventListener("selectstart", function (e) { e.preventDefault(); });
     btn.addEventListener("dragstart", function (e) { e.preventDefault(); });
-    // Clavier : maintien de Espace/Entrée sur le numéro ; la répétition automatique ne réaffiche rien.
+    // Clavier : maintien de Espace/Entrée ; la répétition automatique ne réaffiche rien.
     btn.addEventListener("keydown", function (e) {
       if (!isHoldKey(e.key)) return;
       e.preventDefault();
       if (!e.repeat && playing()) { E.selectEntry(game, grid, id); refresh(); showHint(id, btn, "key"); }
     });
     btn.addEventListener("keyup", function (e) { if (isHoldKey(e.key)) { e.preventDefault(); hideHint(); } });
-    btn.addEventListener("blur", hideHint);
-    btn.addEventListener("click", function (e) { e.preventDefault(); hideHint(); });   // un clic simple ne laisse rien affiché
+    btn.addEventListener("blur", function () { if (heldKind === "key") hideHint(); });
+    btn.addEventListener("click", function (e) { e.preventDefault(); if (heldKind === "key" || heldPointerType === "mouse") hideHint(); });
   }
 
-  /* Gardes globales (phase de capture, sans jamais bloquer ni détourner l'événement :
-     la grille, les boutons et le clavier continuent de fonctionner normalement). */
+  /* Gardes globales (capture, sans jamais bloquer l'événement) : une AUTRE interaction masque l'indice.
+     Ni contextmenu, ni selectstart, ni scroll, ni resize n'en font partie : sur téléphone ils surviennent
+     pendant l'appui long ou lorsque la barre du navigateur se replie, doigt toujours posé. */
   function installHintGuards() {
-    // Toute nouvelle interaction pointeur/tactile (ailleurs, autre doigt, autre bouton) masque l'indice.
-    // Le pointerdown du numéro lui-même repasse ensuite par showHint() pour le nouveau maintien.
-    doc.addEventListener("pointerdown", function () { if (heldId) hideHint(); }, true);
-    // Relâchement n'importe où dans la page (même si le pointeur a quitté le numéro).
-    doc.addEventListener("pointerup", function () { if (heldId) hideHint(); }, true);
-    doc.addEventListener("pointercancel", function () { if (heldId) hideHint(); }, true);
-    doc.addEventListener("touchend", function () { if (heldId) hideHint(); }, true);
-    doc.addEventListener("touchcancel", function () { if (heldId) hideHint(); }, true);
+    // Un autre pointeur (autre doigt, clic ailleurs) masque l'indice.
+    doc.addEventListener("pointerdown", function (e) { if (heldId && e.pointerId !== heldPointerId) hideHint(); }, true);
+    // Relâchement ou annulation du pointeur qui maintient, où qu'il survienne dans la page.
+    ["pointerup", "pointercancel"].forEach(function (ev) {
+      doc.addEventListener(ev, function (e) { if (heldId && heldKind === "pointer" && e.pointerId === heldPointerId) hideHint(); }, true);
+    });
     // Toute autre touche du clavier masque l'indice (seule la répétition de la touche de maintien est ignorée).
     doc.addEventListener("keydown", function (e) {
       if (!heldId) return;
       if (heldKind === "key" && e.repeat && isHoldKey(e.key)) return;
       hideHint();
     }, true);
-    // Défilement, molette, redimensionnement, clic droit, sélection : autre interaction.
-    ["wheel", "scroll", "contextmenu", "selectstart"].forEach(function (ev) {
-      doc.addEventListener(ev, function () { if (heldId) hideHint(); }, { capture: true, passive: true });
-    });
-    window.addEventListener("resize", hideHint);
+    // Molette de souris pendant un maintien à la souris.
+    doc.addEventListener("wheel", function () { if (heldId && heldPointerType === "mouse") hideHint(); }, { capture: true, passive: true });
+    // Application masquée ou fenêtre inactive : plus de maintien possible.
     window.addEventListener("blur", hideHint);
+    doc.addEventListener("visibilitychange", function () { if (doc.hidden) hideHint(); });
   }
 
   /* ------------------------------------------------------------------ */
@@ -626,7 +638,7 @@
       var el = $("timer");
       el.textContent = T.format(remaining);
       el.classList.toggle("warn", sec <= 60);
-      [120, 60, 30].forEach(function (m) {
+      [300, 60, 30].forEach(function (m) {
         if (sec <= m && !announced[m] && sec > 0) { announced[m] = 1; srSay("Il reste " + (m >= 60 ? m / 60 + " minute" + (m > 60 ? "s" : "") : m + " secondes") + "."); }
       });
     }
