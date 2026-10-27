@@ -124,11 +124,12 @@ button, input { font: inherit; color: inherit; }
 .clues-help { color: var(--muted); font-size: .85rem; margin-bottom: 8px; }
 .clue-heading { font-size: .9rem; color: var(--silver); margin: 10px 0 6px; font-weight: 600; }
 .clue-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 6px; }
-.clue-btn { position: relative; width: 100%; min-height: 48px; padding: 4px 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.15; background: var(--panel-2); border: 1px solid var(--line-2); border-radius: 8px; cursor: pointer; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: manipulation; }
+.clue-btn { -webkit-tap-highlight-color: transparent; position: relative; width: 100%; min-height: 48px; padding: 4px 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.15; background: var(--panel-2); border: 1px solid var(--line-2); border-radius: 8px; cursor: pointer; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: none; }
 .clue-btn .cn { font-weight: 700; font-size: 1.05rem; }
 .clue-btn .cm { font-size: .7rem; color: var(--muted); }
 .clue-btn .cd { position: absolute; top: 5px; right: 5px; width: 6px; height: 6px; border-radius: 50%; background: var(--silver); opacity: .6; }
 .clue-btn.medium .cd { background: var(--violet); opacity: .9; }
+.clue-btn.hard .cd { background: var(--warn); opacity: .95; }
 .clue-btn.current { border-color: var(--violet); background: var(--violet-soft); }
 .clue-btn.solved { border-color: #3d6b57; background: var(--ok-soft); }
 .clue-btn.solved .cn { color: var(--ok); }
