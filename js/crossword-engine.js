@@ -8,17 +8,17 @@
   /* Toutes les règles chiffrées sont centralisées ici (score, temps, aides). */
   var CONFIG = Engine.CONFIG = {
     SAVE_VERSION: 2,
-    DURATION_MS: 5 * 60 * 1000,
-    POINTS: { easy: 10, medium: 15 },
+    DURATION_MS: 10 * 60 * 1000,
+    POINTS: { easy: 10, medium: 15, hard: 20 },
     FIRST_TRY_BONUS: 10,
     ERROR_PENALTY: 3,            // par tentative complète incorrecte
     VALIDATION_PENALTY: 5,       // en plus, pour la validation incorrecte de ce mot complet
-    TIME_BONUS_PER_10S: 2,       // par tranche complète de 10 s restantes, à la victoire
+    TIME_BONUS_PER_10S: 1,       // bonus modéré : 1 point par tranche complète de 10 s restantes, à la victoire (max. 60 pour 600 s)
     AIDS: {
       letter: { max: 5, label: "lettres", costs: [[0, 0], [0, 0], [0, 0], [0, 0], [2, 3]] },  // [points, secondes] par utilisation
       half:   { max: 2, label: "moitié",  costs: [[3, 15], [3, 15]] }
     },
-    EXPECTED: { total: 25, easy: 15, medium: 10, collections: 10, collectionsEasy: 6, collectionsMedium: 4 }
+    EXPECTED: { total: 25, easy: 12, medium: 10, hard: 3 }
   };
 
   Engine.key = function (r, c) { return r + "," + c; };
@@ -79,7 +79,7 @@
     var errors = [];
     function err(m) { errors.push(m); }
     var grid = Engine.buildGrid(puzzle);
-    var E = grid.entries, ids = {}, answers = {}, clues = {}, count = { easy: 0, medium: 0 }, topics = { collections: 0, collectionsEasy: 0, collectionsMedium: 0, fondamentaux: 0 };
+    var E = grid.entries, ids = {}, answers = {}, clues = {}, count = { easy: 0, medium: 0, hard: 0 };
     if (E.length !== CONFIG.EXPECTED.total) err("Nombre d'entrées : " + E.length + " au lieu de 25");
     E.forEach(function (e) {
       if (ids[e.id]) err("Identifiant en double : " + e.id); ids[e.id] = 1;
@@ -88,8 +88,6 @@
       if (e.direction !== "H" && e.direction !== "V") err(e.id + " : direction invalide");
       if (!(e.difficulty in count)) err(e.id + " : difficulté invalide"); else count[e.difficulty]++;
       if (e.topic !== "collections" && e.topic !== "fondamentaux") err(e.id + " : thème invalide");
-      else if (e.topic === "collections") { topics.collections++; if (e.difficulty === "easy") topics.collectionsEasy++; else topics.collectionsMedium++; }
-      else topics.fondamentaux++;
       if (answers[e.answer]) err("Réponse en double : " + e.answer); answers[e.answer] = 1;
       var cl = (e.clue || "").trim();
       if (cl.length < 8) err(e.id + " : définition manquante");
@@ -102,13 +100,9 @@
       var num = grid.cells[e.row] && grid.cells[e.row][e.col] ? grid.cells[e.row][e.col].number : null;
       if (num !== e.number) err(e.id + " : numéro " + e.number + " au lieu de " + num);
     });
-    ["easy", "medium"].forEach(function (k) {
+    ["easy", "medium", "hard"].forEach(function (k) {
       if (count[k] !== CONFIG.EXPECTED[k]) err("Difficulté " + k + " : " + count[k] + " au lieu de " + CONFIG.EXPECTED[k]);
     });
-    ["collections", "collectionsEasy", "collectionsMedium"].forEach(function (k) {
-      if (topics[k] !== CONFIG.EXPECTED[k]) err("Thème " + k + " : " + topics[k] + " au lieu de " + CONFIG.EXPECTED[k]);
-    });
-    if (topics.fondamentaux !== CONFIG.EXPECTED.total - CONFIG.EXPECTED.collections) err("Fondamentaux : " + topics.fondamentaux);
     var r, c;
     for (r = 0; r < grid.rows; r++) for (c = 0; c < grid.cols; c++) {
       if (grid.cells[r][c].conflict) err("Collision de lettres en (" + r + "," + c + ")");
@@ -261,13 +255,13 @@
   };
   Engine.computeScore = function (events, remainingMs, success) {
     var o = { base: 0, firstTryBonus: 0, timeBonus: 0, errorPenalty: 0, validationPenalty: 0, aidPenalty: 0, aidSeconds: 0,
-      correct: 0, firstTryCorrect: 0, wrong: 0, easySolved: 0, mediumSolved: 0, total: 0 };
+      correct: 0, firstTryCorrect: 0, wrong: 0, easySolved: 0, mediumSolved: 0, hardSolved: 0, total: 0 };
     var total = 0;
     events.forEach(function (e) {
       if (e.type === "correct") {
         var p = CONFIG.POINTS[e.difficulty] || 0;
         total += p; o.base += p; o.correct++;
-        if (e.difficulty === "easy") o.easySolved++; else if (e.difficulty === "medium") o.mediumSolved++;
+        if (e.difficulty === "easy") o.easySolved++; else if (e.difficulty === "medium") o.mediumSolved++; else if (e.difficulty === "hard") o.hardSolved++;
         if (e.firstTry) { total += CONFIG.FIRST_TRY_BONUS; o.firstTryBonus += CONFIG.FIRST_TRY_BONUS; o.firstTryCorrect++; }
       } else if (e.type === "wrong") {
         total = Math.max(0, total - CONFIG.ERROR_PENALTY - CONFIG.VALIDATION_PENALTY);
