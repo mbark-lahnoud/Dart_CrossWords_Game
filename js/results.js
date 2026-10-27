@@ -30,6 +30,7 @@
       correct: score.correct,
       easySolved: score.easySolved,
       mediumSolved: score.mediumSolved,
+      hardSolved: score.hardSolved,
       firstTryCorrect: score.firstTryCorrect,
       wrongAttempts: score.wrong,
       invalidValidations: score.wrong,   // chaque tentative complète incorrecte est aussi une validation incorrecte
@@ -59,7 +60,7 @@
   };
 
   function mmss(ms) { return DCP.Timer.format(ms); }
-  var DIFF = { easy: "facile", medium: "moyenne" };
+  var DIFF = { easy: "facile", medium: "moyenne", hard: "difficile" };
   Results.difficultyLabel = function (d) { return DIFF[d] || d; };
 
   Results.render = function (root, game, grid, bestInfo, showCorrections) {
@@ -85,6 +86,7 @@
       ["Mots trouvés", r.solved + " / " + r.total],
       ["Questions faciles résolues", r.easySolved + " / " + C.EXPECTED.easy],
       ["Questions moyennes résolues", r.mediumSolved + " / " + C.EXPECTED.medium],
+      ["Questions difficiles résolues", r.hardSolved + " / " + C.EXPECTED.hard],
       ["Réponses correctes à la première tentative", String(r.firstTryCorrect)],
       ["Tentatives incorrectes", String(r.wrongAttempts)],
       ["Validations incorrectes de mots complets", String(r.invalidValidations)],
