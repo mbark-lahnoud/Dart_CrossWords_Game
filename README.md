@@ -69,9 +69,7 @@ From fundamental concepts to advanced collections, every question is an opportun
 - Dart language concepts
 
 ### 🔴 Hard
-- `expand()`
-- `takeWhile()`
-- `Comparator`
+- Hard Collection methods
 
 The game contains **25 crossword questions** distributed across three difficulty levels:
 
