@@ -32,8 +32,8 @@
     var inp = c.$("grid-input");
     inp.dispatchEvent(new c.w.KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true }));
   }
-  function pointer(c, el, type, pt) {
-    el.dispatchEvent(new c.w.PointerEvent(type, { pointerType: pt || "touch", pointerId: 1, button: 0, bubbles: true, cancelable: true }));
+  function pointer(c, el, type, pt, id) {
+    el.dispatchEvent(new c.w.PointerEvent(type, { pointerType: pt || "touch", pointerId: id || 1, button: 0, bubbles: true, cancelable: true }));
   }
   function cellEl(c, r, col) { return c.$("grid").querySelector('[data-r="' + r + '"][data-c="' + col + '"]'); }
 
@@ -91,11 +91,11 @@
     });
   }, { browserOnly: true });
 
-  test("Score et chrono visibles en jeu (05:00 au départ) ; définitions masquées", async function () {
+  test("Score et chrono visibles en jeu (10:00 au départ) ; définitions masquées", async function () {
     await withApp(1024, 768, async function (c) {
       startGame(c); await wait(100);
-      assert(/^0[45]:\d\d$/.test(c.$("timer").textContent), "chrono " + c.$("timer").textContent);
-      eq(c.w.DCP.Engine.CONFIG.DURATION_MS, 300000);
+      assert(/^(10|09):\d\d$/.test(c.$("timer").textContent), "chrono " + c.$("timer").textContent);
+      eq(c.w.DCP.Engine.CONFIG.DURATION_MS, 600000);
       eq(c.$("score-value").textContent, "0"); assert(c.$("score-value").offsetHeight > 0 && c.$("timer").offsetHeight > 0);
       var txt = c.$("screen-game").textContent;
       c.w.DCP.PUZZLE.entries.forEach(function (e) { assert(txt.indexOf(e.clue) < 0, "définition visible " + e.id); });
@@ -122,17 +122,39 @@
       btn.dispatchEvent(new c.w.KeyboardEvent("keyup", { key: " ", bubbles: true, cancelable: true })); assert(c.$("hint-pop").hidden, "clavier : masqué au relâchement");
       // Autre interaction : clic ailleurs, autre touche, nouveau doigt -> masqué ; pas de réaffichage sans nouveau maintien.
       pointer(c, btn, "pointerdown", "mouse"); assert(!c.$("hint-pop").hidden);
-      c.$("grid").dispatchEvent(new c.w.PointerEvent("pointerdown", { pointerType: "mouse", button: 0, bubbles: true })); assert(c.$("hint-pop").hidden, "clic ailleurs : masqué");
+      c.$("grid").dispatchEvent(new c.w.PointerEvent("pointerdown", { pointerType: "mouse", pointerId: 2, button: 0, bubbles: true })); assert(c.$("hint-pop").hidden, "clic ailleurs : masqué");
       pointer(c, btn, "pointermove", "mouse"); assert(c.$("hint-pop").hidden, "pas de réaffichage sans nouveau maintien");
       pointer(c, btn, "pointerdown", "touch"); c.d.dispatchEvent(new c.w.KeyboardEvent("keydown", { key: "a", bubbles: true })); assert(c.$("hint-pop").hidden, "autre touche : masqué");
-      pointer(c, btn, "pointerdown", "touch"); pointer(c, c.$("grid"), "pointerdown", "touch"); assert(c.$("hint-pop").hidden, "second doigt : masqué");
+      pointer(c, btn, "pointerdown", "touch"); pointer(c, c.$("grid"), "pointerdown", "touch", 2); assert(c.$("hint-pop").hidden, "second doigt : masqué");
       btn.dispatchEvent(new c.w.KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true })); assert(!c.$("hint-pop").hidden);
       btn.dispatchEvent(new c.w.KeyboardEvent("keydown", { key: " ", repeat: true, bubbles: true, cancelable: true })); assert(!c.$("hint-pop").hidden, "répétition ignorée");
       btn.dispatchEvent(new c.w.KeyboardEvent("keydown", { key: "b", bubbles: true })); assert(c.$("hint-pop").hidden, "autre touche pendant maintien clavier");
       btn.dispatchEvent(new c.w.KeyboardEvent("keydown", { key: " ", repeat: true, bubbles: true, cancelable: true })); assert(c.$("hint-pop").hidden, "pas de réaffichage par répétition");
       btn.dispatchEvent(new c.w.KeyboardEvent("keyup", { key: " ", bubbles: true }));
-      pointer(c, btn, "pointerdown", "touch"); c.d.dispatchEvent(new c.w.PointerEvent("pointerup", { pointerType: "touch", bubbles: true })); assert(c.$("hint-pop").hidden, "relâchement hors du numéro");
+      pointer(c, btn, "pointerdown", "touch"); c.d.dispatchEvent(new c.w.PointerEvent("pointerup", { pointerType: "touch", pointerId: 1, bubbles: true })); assert(c.$("hint-pop").hidden, "relâchement hors du numéro");
       var ev = new c.w.MouseEvent("contextmenu", { bubbles: true, cancelable: true }); btn.dispatchEvent(ev); assert(ev.defaultPrevented, "menu contextuel bloqué");
+    });
+  }, { browserOnly: true });
+
+  test("33b. Maintien tactile : l'indice reste affiché doigt posé malgré contextmenu, selectstart, pointerleave, perte de capture, resize, scroll et touchend d'un autre doigt", async function () {
+    await withApp(390, 800, async function (c) {
+      startGame(c); await wait(100);
+      var btn = c.d.querySelector(".clue-btn"), pop = c.$("hint-pop");
+      pointer(c, btn, "pointerdown", "touch", 7); assert(!pop.hidden, "visible au contact");
+      pointer(c, btn, "pointerdown", "touch", 7); assert(!pop.hidden, "doublon de pointerdown ignoré");
+      var cm = new c.w.MouseEvent("contextmenu", { bubbles: true, cancelable: true }); btn.dispatchEvent(cm);
+      assert(cm.defaultPrevented && !pop.hidden, "appui long (contextmenu) : menu bloqué, indice conservé");
+      var ss = new c.w.Event("selectstart", { bubbles: true, cancelable: true }); btn.dispatchEvent(ss); assert(ss.defaultPrevented && !pop.hidden, "selectstart bloqué sans masquer");
+      pointer(c, btn, "pointerleave", "touch", 7); assert(!pop.hidden, "pointerleave tactile ignoré");
+      btn.dispatchEvent(new c.w.Event("lostpointercapture", { bubbles: true })); assert(!pop.hidden, "lostpointercapture ignoré");
+      c.w.dispatchEvent(new c.w.Event("resize")); c.d.dispatchEvent(new c.w.Event("scroll", { bubbles: true })); assert(!pop.hidden, "resize/scroll (barre du navigateur) ignorés");
+      await wait(1200); assert(!pop.hidden, "toujours visible après 1,2 s de maintien");
+      assert(c.w.getComputedStyle(btn).touchAction === "none", "touch-action ciblé sur le numéro");
+      assert(c.w.getComputedStyle(c.$("side")).touchAction !== "none", "le reste de la page peut défiler");
+      pointer(c, btn, "pointerup", "touch", 99); assert(!pop.hidden, "pointerup d'un autre pointeur ignoré");
+      pointer(c, btn, "pointerup", "touch", 7); assert(pop.hidden, "masqué au relâchement du doigt");
+      pointer(c, btn, "pointerdown", "touch", 8); pointer(c, btn, "pointercancel", "touch", 8); assert(pop.hidden, "masqué à l'annulation");
+      assert(c.w.getComputedStyle(btn).userSelect === "none");
     });
   }, { browserOnly: true });
 
@@ -154,7 +176,7 @@
   test("Validation à l'écran : mot correct verrouillé, progression mise à jour", async function () {
     await withApp(1024, 768, async function (c) {
       startGame(c); await wait(100);
-      var A = c.w.DCP.App, e = A.grid.byId[A.grid.entries.filter(function (x) { return x.answer === "FOR"; })[0].id];
+      var A = c.w.DCP.App, e = A.grid.byId[A.grid.entries.filter(function (x) { return x.answer === "SET"; })[0].id];
       cellEl(c, e.cells[0].r, e.cells[0].c).click();
       if (A.getGame().sel.dir !== e.direction) cellEl(c, e.cells[0].r, e.cells[0].c).click();
       e.answer.split("").forEach(function (ch) { key(c, ch); });
@@ -197,7 +219,7 @@
       assert(c.$("aid-letter").disabled && c.$("aid-half").disabled, "les deux boutons désactivés");
       assert(!c.d.querySelector(".modal"), "messages intégrés, pas de fenêtre séparée");
       eq(A.getGame().errors, 0);
-      var rem = c.w.DCP.Timer.remainingMs(A.getGame(), Date.now()); eq(A.getGame().penaltyMs, 33000); assert(rem <= 300000 - 33000 && rem > 300000 - 33000 - 20000, "chrono réduit d'au moins 33 s : " + rem);
+      var rem = c.w.DCP.Timer.remainingMs(A.getGame(), Date.now()); eq(A.getGame().penaltyMs, 33000); assert(rem <= 600000 - 33000 && rem > 600000 - 33000 - 20000, "chrono réduit d'au moins 33 s : " + rem);
     });
   }, { browserOnly: true });
 
@@ -213,7 +235,7 @@
     var ns = "pen" + Date.now(); var f = await open(1024, 768, ns); var c = ctx(f);
     try {
       startGame(c, "Lina"); await wait(100);
-      var A = c.w.DCP.App, g = A.getGame(); g.runStart = Date.now() - 290000;   // 10 s restantes
+      var A = c.w.DCP.App, g = A.getGame(); g.runStart = Date.now() - 590000;   // 10 s restantes
       selectEntry(c, entryOf(c, "UNMODIFIABLE")); c.$("aid-half").click(); await wait(300);
       assert(!c.$("screen-results").hidden, "résultats affichés"); eq(A.getGame().status, "finished");
       assert(/Fin de partie/.test(c.$("results-content").textContent) && !/Victoire/.test(c.$("results-content").textContent));
@@ -243,11 +265,11 @@
     } finally { f.remove(); }
   }, { browserOnly: true });
 
-  test("Fin par expiration au retour, résultat unique, corrections et Rejouer (chrono remis à 05:00)", async function () {
+  test("Fin par expiration au retour, résultat unique, corrections et Rejouer (chrono remis à 10:00)", async function () {
     var ns = "expire" + Date.now(); var f = await open(1024, 768, ns); var c = ctx(f);
     try {
       startGame(c, "Nadia"); await wait(100);
-      var g = c.w.DCP.App.getGame(); g.runStart = Date.now() - 301000; c.w.DCP.Storage.saveGame(g);
+      var g = c.w.DCP.App.getGame(); g.runStart = Date.now() - 601000; c.w.DCP.Storage.saveGame(g);
       await new Promise(function (res) { f.onload = res; f.contentWindow.location.reload(); }); c = ctx(f); await wait(200);
       assert(!c.$("screen-results").hidden, "résultats affichés");
       var txt = c.$("results-content").textContent;
@@ -259,7 +281,7 @@
       assert(!c.$("screen-game").hidden, "Rejouer relance une partie");
       var G2 = c.w.DCP.App.getGame(); eq(G2.status, "playing"); eq(G2.player, "Nadia");
       eq([G2.points, G2.errors, G2.penaltyMs, G2.hints.letter, G2.hints.half, G2.events.length, Object.keys(G2.letters).length], [0, 0, 0, 0, 0, 0, 0]);
-      assert(/^0[45]:\d\d$/.test(c.$("timer").textContent) && c.w.DCP.Timer.remainingMs(G2, Date.now()) > 299000, "chrono remis à 300 s");
+      assert(/^(10|09):\d\d$/.test(c.$("timer").textContent) && c.w.DCP.Timer.remainingMs(G2, Date.now()) > 599000, "chrono remis à 600 s");
       assert(/Lettres révélées : 0\/5/.test(c.$("aid-letter-left").textContent) && !c.$("aid-letter").disabled && !c.$("aid-half").disabled);
       assert(c.d.querySelectorAll(".cell.filled").length === 0 && c.d.querySelectorAll(".cell.solved").length === 0);
     } finally { f.remove(); }
