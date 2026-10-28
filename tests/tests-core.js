@@ -18,21 +18,42 @@
   function solveAll(game) { grid.entries.forEach(function (e) { typeWord(game, e); }); }
   function wrongOf(e) { return (e.answer[0] === "Q" ? "W" : "Q") + e.answer.slice(1); }
   function aidEvents(game) { return game.events.filter(function (x) { return x.type === "aid"; }); }
-  var UNM = byAnswer("UNMODIFIABLE"), FOR = byAnswer("FOR"), SPLIT = byAnswer("SPLIT"), MAPW = byAnswer("MAP");
+  var UNM = byAnswer("UNMODIFIABLE"), FOR = byAnswer("SET"), SPLIT = byAnswer("SPLIT"), MAPW = byAnswer("MAP");
 
   /* ---- Données et grille ---- */
   test("1. Exactement 25 questions", function () { eq(DCP.PUZZLE.entries.length, 25); });
-  test("2. 15 faciles et 10 moyennes (aucune difficile)", function () {
-    var c = { easy: 0, medium: 0, other: 0 };
+  test("2. 12 faciles, 10 moyennes et 3 difficiles", function () {
+    var c = { easy: 0, medium: 0, other: 0 }; DCP.PUZZLE.entries.forEach(function (e) { if (e.difficulty === "hard") c.other--; });
     DCP.PUZZLE.entries.forEach(function (e) { if (e.difficulty in c) c[e.difficulty]++; else c.other++; });
-    eq(c, { easy: 15, medium: 10, other: 0 });
+    eq(c, { easy: 12, medium: 10, other: 0 }); eq(DCP.PUZZLE.entries.filter(function (e) { return e.difficulty === "hard"; }).length, 3);
   });
-  test("3. Exactement 10 questions sur les collections (6 faciles + 4 moyennes), 15 sur les fondamentaux", function () {
-    var c = DCP.PUZZLE.entries.filter(function (e) { return e.topic === "collections"; });
-    eq(c.length, 10);
-    eq(c.filter(function (e) { return e.difficulty === "easy"; }).length, 6);
-    eq(c.filter(function (e) { return e.difficulty === "medium"; }).length, 4);
-    eq(DCP.PUZZLE.entries.filter(function (e) { return e.topic === "fondamentaux"; }).length, 15);
+  var EXPECTED_LIST = [
+    ["REMOVE", "easy", "Méthode qui retire un élément d'une collection."], ["VOID", "easy", "Type de retour d'une fonction qui ne renvoie rien."],
+    ["DOUBLE", "easy", "Type des nombres à virgule flottante."], ["MAP", "easy", "Collection de paires clé-valeur."],
+    ["MAIN", "easy", "Nom de la fonction par laquelle démarre un programme Dart."], ["LENGTH", "easy", "Propriété qui donne le nombre d'éléments d'une collection ou de caractères d'une chaîne."],
+    ["FINAL", "easy", "Mot-clé d'une variable qui ne peut être affectée qu'une seule fois, à l'exécution."], ["NUM", "easy", "Type parent commun de int et double."],
+    ["SET", "easy", "Collection d'éléments uniques, sans doublons."], ["KEYS", "easy", "Propriété d'une Map qui renvoie l'ensemble de ses clés."],
+    ["BOOL", "easy", "Type dont les seules valeurs sont true et false."], ["ISEMPTY", "easy", "Propriété booléenne vraie lorsqu'une collection ne contient aucun élément."],
+    ["OBJECT", "medium", "Supertype de tous les types non nullables ; sa version avec point d'interrogation accepte aussi null."], ["TOUPPERCASE", "medium", "Méthode de String qui renvoie le texte en majuscules."],
+    ["UNMODIFIABLE", "medium", "Constructeur de List qui renvoie une liste que l'on ne peut plus modifier."], ["EVERY", "medium", "Méthode qui renvoie true si tous les éléments satisfont la condition."],
+    ["FOLD", "medium", "Méthode qui réduit une collection à une seule valeur à partir d'une valeur initiale."], ["DEFAULT", "medium", "Mot-clé de la branche exécutée lorsqu'aucun case de switch ne correspond."],
+    ["CONTINUE", "medium", "Mot-clé qui passe directement à l'itération suivante d'une boucle."], ["LATE", "medium", "Modificateur qui permet d'initialiser une variable non nullable après sa déclaration."],
+    ["ANY", "medium", "Méthode qui renvoie true si au moins un élément satisfait la condition."], ["SPLIT", "medium", "Méthode de String qui découpe le texte selon un séparateur."],
+    ["EXPAND", "hard", "Quelle méthode transforme chaque élément en une séquence, puis rassemble les résultats dans une seule séquence ?"],
+    ["TAKEWHILE", "hard", "Quelle méthode conserve les éléments du début d'une séquence et s'arrête dès que la condition n'est plus satisfaite ?"],
+    ["COMPARATOR", "hard", "Quel type de fonction permet de définir l'ordre relatif de deux éléments pour effectuer un tri personnalisé ?"]
+  ];
+  test("3. Les 25 réponses, difficultés et indices correspondent exactement à la liste définitive ; FOR, INT, WHILE supprimés", function () {
+    eq(EXPECTED_LIST.length, 25);
+    EXPECTED_LIST.forEach(function (x) {
+      var e = byAnswer(x[0]); assert(e, "entrée absente : " + x[0]);
+      eq(e.difficulty, x[1], x[0] + " difficulté"); eq(e.clue, x[2], x[0] + " indice"); eq(e.length, x[0].length, x[0] + " longueur");
+      assert(e.topic === "collections" || e.topic === "fondamentaux", x[0] + " thème");
+    });
+    ["FOR", "INT", "WHILE"].forEach(function (a) { assert(!byAnswer(a), a + " doit être supprimé"); });
+    ["EXPAND", "TAKEWHILE", "COMPARATOR"].forEach(function (a) { eq(byAnswer(a).difficulty, "hard"); eq(byAnswer(a).topic, "collections"); });
+    eq(DCP.PUZZLE.entries.map(function (e) { return e.answer; }).sort(), EXPECTED_LIST.map(function (x) { return x[0]; }).sort());
+    DCP.PUZZLE.entries.forEach(function (e) { ["id", "number", "direction", "row", "col", "length", "answer", "difficulty", "topic", "clue", "variants"].forEach(function (k) { assert(k in e, e.id + " champ " + k); }); });
   });
   test("4. Définitions et réponses cohérentes, grille vérifiée (croisements, numéros, séquences)", function () {
     var v = E.verifyPuzzle(DCP.PUZZLE); assert(v.ok, v.errors.join("; "));
@@ -48,7 +69,7 @@
     bad.entries.forEach(function (e) { if (e.id === cx.id) e.answer = e.answer.slice(0, cx.i) + "Z" + e.answer.slice(cx.i + 1); });
     assert(!E.verifyPuzzle(bad).ok);
     var b2 = JSON.parse(JSON.stringify(DCP.PUZZLE)); b2.entries.pop(); assert(!E.verifyPuzzle(b2).ok);
-    var b3 = JSON.parse(JSON.stringify(DCP.PUZZLE)); b3.entries[0].topic = b3.entries[0].topic === "collections" ? "fondamentaux" : "collections"; assert(!E.verifyPuzzle(b3).ok);
+    var b3 = JSON.parse(JSON.stringify(DCP.PUZZLE)); b3.entries[0].topic = "autre"; assert(!E.verifyPuzzle(b3).ok);
   });
   test("6. Numérotation classique et croisements cohérents", function () {
     var n = 0, expected = {}, crossings = 0;
@@ -67,18 +88,18 @@
   });
 
   /* ---- Chronomètre ---- */
-  test("8. Chronomètre initial : exactement 300 secondes", function () {
-    eq(E.CONFIG.DURATION_MS, 300000); var g1 = G();
-    eq(Tm.remainingMs(g1, t0), 300000); eq(Tm.format(Tm.remainingMs(g1, t0)), "05:00");
-    eq(Tm.format(Tm.remainingMs(g1, t0 + 30000)), "04:30");
+  test("8. Chronomètre initial : exactement 600 secondes (10:00)", function () {
+    eq(E.CONFIG.DURATION_MS, 600000); var g1 = G();
+    eq(Tm.remainingMs(g1, t0), 600000); eq(Tm.format(Tm.remainingMs(g1, t0)), "10:00");
+    eq(Tm.format(Tm.remainingMs(g1, t0 + 30000)), "09:30"); eq(Tm.format(Tm.remainingMs(g1, t0 + 9e6)), "00:00", "jamais négatif");
   });
-  test("9. Pause réelle, reprise, expiration à 300 s", function () {
+  test("9. Pause réelle, reprise, expiration à 600 s", function () {
     var g1 = G();
     Tm.pause(g1, t0 + 30000); eq(Tm.elapsedMs(g1, t0 + 900000), 30000); Tm.resume(g1, t0 + 900000); eq(Tm.elapsedMs(g1, t0 + 910000), 40000);
-    var g2 = G(); assert(!Tm.isExpired(g2, t0 + 299999)); assert(Tm.isExpired(g2, t0 + 300000));
-    var n = 0, tk = Tm.createTicker({ getGame: function () { return g2; }, getNow: function () { return t0 + 400000; }, onTick: function () {}, onExpire: function () { n++; } });
+    var g2 = G(); assert(!Tm.isExpired(g2, t0 + 599999)); assert(Tm.isExpired(g2, t0 + 600000));
+    var n = 0, tk = Tm.createTicker({ getGame: function () { return g2; }, getNow: function () { return t0 + 700000; }, onTick: function () {}, onExpire: function () { n++; } });
     tk.tick(); tk.tick(); eq(n, 1);
-    assert(R.finishGame(g2, grid, "timeout", t0 + 400000)); eq(g2.result.elapsedMs, 300000); eq(g2.result.score.timeBonus, 0); assert(!g2.result.success);
+    assert(R.finishGame(g2, grid, "timeout", t0 + 700000)); eq(g2.result.elapsedMs, 600000); eq(g2.result.score.timeBonus, 0); assert(!g2.result.success);
   });
 
   /* ---- Score ---- */
@@ -107,15 +128,15 @@
     eq(E.computeScore([{ type: "wrong" }, { type: "wrong" }, { type: "aid", points: 3, seconds: 15 }], 0, false).total, 0);
     var g2 = G(); for (var i = 0; i < 2; i++) H.revealHalf(g2, grid, UNM.id, null, t0); assert(g2.points >= 0); eq(g2.points, 0);
   });
-  test("14. Bonus de temps : 2 points par tranche complète de 10 s (65 s → 12)", function () {
-    eq(E.timeBonus(65000, true), 12); eq(E.timeBonus(9999, true), 0); eq(E.timeBonus(10000, true), 2); eq(E.timeBonus(300000, true), 60);
+  test("14. Bonus de temps modéré : 1 point par tranche complète de 10 s (65 s → 6, max. 60)", function () {
+    eq(E.timeBonus(65000, true), 6); eq(E.timeBonus(9999, true), 0); eq(E.timeBonus(10000, true), 1); eq(E.timeBonus(600000, true), 60, "plafond de 60 points");
     eq(E.timeBonus(65000, false), 0, "jamais sans victoire");
   });
   test("15. Victoire : chrono arrêté, bonus de temps attribué une seule fois", function () {
-    var g1 = G(); solveAll(g1); assert(E.allSolved(g1, grid)); eq(g1.points, 15 * 10 + 10 * 15 + 25 * 10);
+    var g1 = G(); solveAll(g1); assert(E.allSolved(g1, grid)); eq(g1.points, 12 * 10 + 10 * 15 + 3 * 20 + 25 * 10);
     assert(R.finishGame(g1, grid, "success", t0 + 100000));
-    var r = g1.result; assert(r.success); eq(r.elapsedMs, 100000); eq(r.score.timeBonus, 40); eq(r.score.total, 550 + 40);
-    eq([r.solved, r.easySolved, r.mediumSolved, r.firstTryCorrect, r.wrongAttempts], [25, 15, 10, 25, 0]);
+    var r = g1.result; assert(r.success); eq(r.elapsedMs, 100000); eq(r.score.timeBonus, 50); eq(r.score.total, 580 + 50);
+    eq([r.solved, r.easySolved, r.mediumSolved, r.hardSolved, r.firstTryCorrect, r.wrongAttempts], [25, 12, 10, 3, 25, 0]);
     var snap = JSON.stringify(g1.result); assert(!R.finishGame(g1, grid, "timeout", t0 + 900000)); eq(JSON.stringify(g1.result), snap, "fin unique");
     var g2 = G(); assert(R.finishGame(g2, grid, "success", t0 + 1000)); assert(!g2.result.success, "succès refusé si incomplet");
   });
@@ -128,7 +149,7 @@
       eq(r.cost, { points: 0, seconds: 0 }); eq(g1.penaltyMs, 0); eq(g1.points, 20);
     }
     var r5 = H.revealLetter(g1, grid, UNM.id, null, t0); assert(r5.ok); eq(r5.cost, { points: 2, seconds: 3 });
-    eq(g1.penaltyMs, 3000); eq(g1.points, 18); eq(Tm.remainingMs(g1, t0), 297000);
+    eq(g1.penaltyMs, 3000); eq(g1.points, 18); eq(Tm.remainingMs(g1, t0), 597000);
     var r6 = H.revealLetter(g1, grid, UNM.id, null, t0); assert(!r6.ok); eq(r6.reason, "exhausted");
     eq(g1.hints.letter, 5); eq(g1.penaltyMs, 3000); eq(g1.points, 18); eq(aidEvents(g1).length, 5);
     assert(H.exhausted(g1, "letter")); eq(H.nextCost(g1, "letter"), null);
@@ -156,7 +177,7 @@
   test("19. Révéler la moitié : 2 utilisations, chacune −3 points et −15 s, jamais de 3e", function () {
     var g1 = G(); typeWord(g1, FOR); typeWord(g1, SPLIT); eq(g1.points, 45);
     var a = H.revealHalf(g1, grid, UNM.id, null, t0); assert(a.ok); eq(a.cost, { points: 3, seconds: 15 }); eq(g1.points, 42); eq(g1.penaltyMs, 15000);
-    var b = H.revealHalf(g1, grid, UNM.id, null, t0); assert(b.ok); eq(g1.points, 39); eq(g1.penaltyMs, 30000); eq(Tm.remainingMs(g1, t0), 270000);
+    var b = H.revealHalf(g1, grid, UNM.id, null, t0); assert(b.ok); eq(g1.points, 39); eq(g1.penaltyMs, 30000); eq(Tm.remainingMs(g1, t0), 570000);
     var c = H.revealHalf(g1, grid, UNM.id, null, t0); assert(!c.ok); eq(c.reason, "exhausted"); eq(g1.hints.half, 2); eq(g1.penaltyMs, 30000);
   });
   test("20. Quantité révélée : moitié des lettres inconnues arrondie à l'inférieur, au moins une", function () {
@@ -164,7 +185,7 @@
     eq(H.revealHalf(a, grid, UNM.id, null, t0).cells.length, 3, "moitié des 6 restantes");
     var b = G(); eq(H.revealHalf(b, grid, SPLIT.id, null, t0).cells.length, 2);
     var c = G(); eq(H.revealHalf(c, grid, MAPW.id, null, t0).cells.length, 1, "3 inconnues → 1");
-    var d = G(); E.setLetterAt(d, grid, FOR.cells[0].r, FOR.cells[0].c, "F"); E.setLetterAt(d, grid, FOR.cells[1].r, FOR.cells[1].c, "O");
+    var d = G(); E.setLetterAt(d, grid, FOR.cells[0].r, FOR.cells[0].c, "S"); E.setLetterAt(d, grid, FOR.cells[1].r, FOR.cells[1].c, "E");
     var r = H.revealHalf(d, grid, FOR.id, null, t0); eq(r.cells.length, 1, "au moins une"); assert(d.solved[FOR.id]);
     var e1 = G(), r1 = H.revealHalf(e1, grid, UNM.id, function () { return 0; }, t0), e2 = G(), r2 = H.revealHalf(e2, grid, UNM.id, function () { return 0.99; }, t0);
     assert(JSON.stringify(r1.cells) !== JSON.stringify(r2.cells), "tirage aléatoire");
@@ -173,11 +194,11 @@
     eq(known, 3); eq(H.revealHalf(f, grid, UNM.id, null, t0).cells.length, 1, "ne révèle que des lettres inconnues");
   });
   test("21. Pénalité de temps immédiate ; fin immédiate si le chrono atteint zéro", function () {
-    var g1 = G(), now = t0 + 280000;           // 20 s restantes
+    var g1 = G(), now = t0 + 580000;           // 20 s restantes
     var a = H.revealHalf(g1, grid, UNM.id, null, now); assert(a.ok && !a.timeUp); eq(Tm.remainingMs(g1, now), 5000);
     var b = H.revealHalf(g1, grid, SPLIT.id, null, now); assert(b.ok && b.timeUp, "zéro atteint"); eq(Tm.remainingMs(g1, now), 0);
     assert(Tm.isExpired(g1, now)); assert(R.finishGame(g1, grid, "timeout", now)); eq(g1.status, "finished"); assert(!g1.result.success);
-    var g2 = G(); H.revealHalf(g2, grid, UNM.id, null, t0); Tm.pause(g2, t0 + 5000); eq(Tm.remainingMs(g2, t0 + 99999), 280000, "pénalité conservée en pause");
+    var g2 = G(); H.revealHalf(g2, grid, UNM.id, null, t0); Tm.pause(g2, t0 + 5000); eq(Tm.remainingMs(g2, t0 + 99999), 580000, "pénalité conservée en pause");
   });
   test("22. Compteurs indépendants et seulement remis à zéro par une nouvelle partie", function () {
     var g1 = G(); for (var i = 0; i < 5; i++) H.revealLetter(g1, grid, UNM.id, null, t0);
@@ -194,12 +215,12 @@
     var g1 = G(); typeWord(g1, FOR); typeWord(g1, FOR); typeWord(g1, UNM, wrongOf(UNM)); typeWord(g1, UNM, wrongOf(UNM)); typeWord(g1, UNM, wrongOf(UNM));
     eq(g1.events.length, 2); eq(g1.errors, 1);
     var sc = E.computeScore(g1.events, 0, false), again = E.computeScore(g1.events, 0, false); eq(sc, again);
-    var g2 = G(); typeWord(g2, FOR); R.finishGame(g2, grid, "timeout", t0 + 400000); var best = R.updateBest({}, g2.result, 1).best, b2 = R.updateBest(best, g2.result, 2); assert(!b2.improved, "même résultat : pas de remplacement");
+    var g2 = G(); typeWord(g2, FOR); R.finishGame(g2, grid, "timeout", t0 + 700000); var best = R.updateBest({}, g2.result, 1).best, b2 = R.updateBest(best, g2.result, 2); assert(!b2.improved, "même résultat : pas de remplacement");
   });
 
   /* ---- Fin, sauvegarde, meilleurs scores, clavier ---- */
   test("25. Verrouillage après la fin de partie", function () {
-    var g1 = G(); R.finishGame(g1, grid, "timeout", t0 + 400000);
+    var g1 = G(); R.finishGame(g1, grid, "timeout", t0 + 700000);
     assert(!E.setLetterAt(g1, grid, FOR.cells[0].r, FOR.cells[0].c, "A").ok); assert(!E.applyKey(g1, grid, "A").handled);
     assert(!H.revealLetter(g1, grid, FOR.id, null, t0).ok); assert(!H.revealHalf(g1, grid, FOR.id, null, t0).ok); assert(!Tm.pause(g1, t0 + 5));
   });
@@ -208,8 +229,8 @@
     var g1 = G("Amina"); typeWord(g1, FOR); typeWord(g1, UNM, wrongOf(UNM)); H.revealLetter(g1, grid, SPLIT.id, null, t0); H.revealHalf(g1, grid, UNM.id, null, t0); E.selectEntry(g1, grid, SPLIT.id);
     assert(S.saveGame(g1)); var back = S.loadGame().game; eq(back, JSON.parse(JSON.stringify(g1)));
     eq(back.penaltyMs, 15000); eq(back.hints, { letter: 1, half: 1 }); assert(back.noBonus[SPLIT.id]);
-    eq(Tm.remainingMs(back, t0 + 45000), 300000 - 45000 - 15000, "temps recalculé depuis les timestamps + pénalité");
-    assert(Tm.isExpired(back, t0 + 286000), "délai dépassé fenêtre fermée : fin au retour");
+    eq(Tm.remainingMs(back, t0 + 45000), 600000 - 45000 - 15000, "temps recalculé depuis les timestamps + pénalité");
+    assert(Tm.isExpired(back, t0 + 586000), "délai dépassé fenêtre fermée : fin au retour");
     assert(!H.revealHalf(back, grid, UNM.id, null, t0).ok || H.used(back, "half") === 2);
   });
   test("27. Reprise, redémarrage, sauvegarde ancienne/corrompue, stockage défaillant", function () {
